@@ -2,6 +2,10 @@
 ## usage
 
 ### install requirements
+
+- Ubuntu 2018
+- Apache 2 
+
 ```
 sudo apt-get install jq -y
 ```
@@ -23,6 +27,19 @@ git clone https://github.com/wiejakp/apache-logger.git
 cd apache-logger
 chmod +x public/src/reader.sh
 ./public/src/reader.sh
+```
+
+### usage
+
+```
+-h|--host example.com
+-p|--port 80
+-s|--status 200
+-m|--method GET
+-l|--length 25
+-i|--input "/var/log/apache2/log/error.log"
+-f|--follow
+-d|--default
 ```
 
 ### output

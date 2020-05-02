@@ -5,7 +5,7 @@ SCRIPT_SOURCE="$PWD"
 LOGGER_SOURCE=''
 LOGGER_COMMAND='tail'
 
-SETTING_FILE='/var/log/apache2/virtual-host.log'
+SETTING_FILE='/Users/pwiejak/Desktop/logs/virtual-host.log'
 SETTING_HOST=''
 SETTING_PORT=''
 SETTING_STATUS=''
@@ -75,7 +75,8 @@ function init {
 				shift
 			;;
 			-d|--default)
-				SETTING_FILE='/var/log/apache2/virtual-host.log'
+				#SETTING_FILE='/var/log/apache2/virtual-host.log'
+				SETTING_FILE='/Users/pwiejak/Desktop/logs/virtual-host.log'
 				SETTING_LENGTH=25
 				SETTING_FOLLOW=true
 				shift
@@ -94,6 +95,7 @@ function listen {
 	SEARCH=''
 	
 	msg "[ ! ] SETTINGS:"
+	msg "[ ! ] Log File: $SETTING_FILE"
 	
 	if [ ! -z "${SETTING_STATUS}" ]; then
 		SEARCH=$SEARCH" select(.response_status_code | contains(\"$SETTING_STATUS\")) |"
@@ -116,12 +118,14 @@ function listen {
 	fi
 	
 	if [ ! -z "${SETTING_LENGTH}" ]; then
-		LOGGER_COMMAND="$LOGGER_COMMAND --lines=$SETTING_LENGTH"
+		LOGGER_COMMAND="$LOGGER_COMMAND -n $SETTING_LENGTH"
 		
 		msg "[ ! ] Log Length: $SETTING_LENGTH"
 	fi
 	
 	COMMAND_FIELDS='[
+		.request_datetime,
+		.request_date,
 		.request_time,
 		.response_status_code,
 		.remote_addr,
@@ -137,16 +141,18 @@ function listen {
 	
 	# create command string
 	COMMAND_QUERY="${SEARCH} ${COMMAND_FIELDS} | @tsv"
-	COMMAND_FINAL="$LOGGER_COMMAND --follow=name --quiet --retry -- ${SETTING_FILE} | \
-		jq --raw-output --unbuffered '${COMMAND_QUERY}'
-	;"
-	
+	COMMAND_FINAL="$LOGGER_COMMAND -f -q -- ${SETTING_FILE} | jq --raw-output --unbuffered '${COMMAND_QUERY}';"
+
+	# seems like following command can't be used as tail doesn't use long parameter names
+	# --retry doesn't exist on macos
+	#COMMAND_FINAL="$LOGGER_COMMAND --follow=name --quiet --retry -- ${SETTING_FILE} | jq --raw-output --unbuffered '${COMMAND_QUERY}';"
+
 	msg "[ ! ]"
 	msg "[ ! ] RUNNING COMMAND: $COMMAND_FINAL"
 	msg "[ ! ]"
 		
 	bash -c "$COMMAND_FINAL" | \
-		while IFS=$'\t' read -r L_TIME L_CODE L_CLIENT L_HOST L_PORT L_FILE L_URI L_AGENT; do
+		while IFS=$'\t' read -r L_DATETIME L_DATE L_TIME L_CODE L_CLIENT L_HOST L_PORT L_FILE L_URI L_AGENT; do
 			T_HOST=''
 			T_SUBS=''
 			
@@ -165,7 +171,7 @@ function listen {
 				fi
 			fi
 			
-			printf "| %-8s %-15s %-8.8s %-25s %s\n" "${L_TIME}" "${L_CLIENT}" "${T_SUBS}" "[${L_CODE}] ${T_HOST}:${L_PORT}" "${L_URI}"
+			printf "| [%-10s - %-8s] %-15s %-8.8s %-25s %s\n" "${L_DATE}" "${L_TIME}" "${L_CLIENT}" "${T_SUBS}" "[${L_CODE}] ${T_HOST}:${L_PORT}" "${L_URI}"
 		done
 }
 

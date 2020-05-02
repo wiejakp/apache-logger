@@ -5,7 +5,7 @@ SCRIPT_SOURCE="$PWD"
 LOGGER_SOURCE=''
 LOGGER_COMMAND='tail'
 
-SETTING_FILE='/Users/pwiejak/Desktop/logs/virtual-host.log'
+SETTING_FILE='/var/log/apache2/virtual-host.log'
 SETTING_HOST=''
 SETTING_PORT=''
 SETTING_STATUS=''
@@ -75,8 +75,7 @@ function init {
 				shift
 			;;
 			-d|--default)
-				#SETTING_FILE='/var/log/apache2/virtual-host.log'
-				SETTING_FILE='/Users/pwiejak/Desktop/logs/virtual-host.log'
+				SETTING_FILE='/var/log/apache2/virtual-host.log'
 				SETTING_LENGTH=25
 				SETTING_FOLLOW=true
 				shift
@@ -96,33 +95,33 @@ function listen {
 	
 	msg "[ ! ] SETTINGS:"
 	msg "[ ! ] Log File: $SETTING_FILE"
-	
+
 	if [ ! -z "${SETTING_STATUS}" ]; then
 		SEARCH=$SEARCH" select(.response_status_code | contains(\"$SETTING_STATUS\")) |"
 		msg "[ ! ] Status Code: $SETTING_STATUS"
 	fi
-	
+
 	if [ ! -z "${SETTING_HOST}" ]; then
 		SEARCH=$SEARCH" select(.server_name | contains(\"$SETTING_HOST\")) |"
 		msg "[ ! ] Server Name: $SETTING_HOST"
 	fi
-	
+
 	if [ ! -z "${SETTING_PORT}" ]; then
 		SEARCH=$SEARCH" select(.server_port | contains(\"$SETTING_PORT\")) |"
 		msg "[ ! ] Server Port: $SETTING_PORT"
 	fi
-	
+
 	if [ ! -z "${SETTING_METHOD}" ]; then
 		SEARCH=$SEARCH" select(.request_method | contains(\"$SETTING_METHOD\")) |"
 		msg "[ ! ] HTTP Method: $SETTING_METHOD"
 	fi
-	
+
 	if [ ! -z "${SETTING_LENGTH}" ]; then
 		LOGGER_COMMAND="$LOGGER_COMMAND -n $SETTING_LENGTH"
-		
+
 		msg "[ ! ] Log Length: $SETTING_LENGTH"
 	fi
-	
+
 	COMMAND_FIELDS='[
 		.request_datetime,
 		.request_date,
@@ -138,7 +137,7 @@ function listen {
 
 	# get log files
 	SETTING_FILE=`files ${SETTING_FILE}`
-	
+
 	# create command string
 	COMMAND_QUERY="${SEARCH} ${COMMAND_FIELDS} | @tsv"
 	COMMAND_FINAL="$LOGGER_COMMAND -f -q -- ${SETTING_FILE} | jq --raw-output --unbuffered '${COMMAND_QUERY}';"
@@ -150,12 +149,12 @@ function listen {
 	msg "[ ! ]"
 	msg "[ ! ] RUNNING COMMAND: $COMMAND_FINAL"
 	msg "[ ! ]"
-		
+
 	bash -c "$COMMAND_FINAL" | \
 		while IFS=$'\t' read -r L_DATETIME L_DATE L_TIME L_CODE L_CLIENT L_HOST L_PORT L_FILE L_URI L_AGENT; do
 			T_HOST=''
 			T_SUBS=''
-			
+
 			if `valid_ip $L_HOST`; then # IP ADDRESS
 				T_HOST="${L_HOST}"
 			else # WEB ADDRESS
@@ -170,7 +169,7 @@ function listen {
 					T_HOST="${HOST_PARTS[1]}.${HOST_PARTS[2]}"
 				fi
 			fi
-			
+
 			printf "| [%-10s - %-8s] %-15s %-8.8s %-25s %s\n" "${L_DATE}" "${L_TIME}" "${L_CLIENT}" "${T_SUBS}" "[${L_CODE}] ${T_HOST}:${L_PORT}" "${L_URI}"
 		done
 }
